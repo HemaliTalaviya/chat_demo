@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp UI</title>
+ <style>
+    body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .container {
+    display: flex;
+    height: 100vh;
+  }
+  
+  .sidebar {
+    width: 250px;
+    background-color: #ece5dd;
+    padding: 20px;
+    border-right: 1px solid #ccc;
+  }
+  
+  .header {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 20px;
+  }
+  
+  .search-bar {
+    margin-bottom: 20px;
+  }
+  
+  .chat-list {
+    overflow-y: auto;
+  }
+  
+  .chat {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    cursor: pointer;
+  }
+  
+  .avatar {
+    width: 50px;
+    height: 50px;
+    background-color: #ccc;
+    border-radius: 50%;
+    margin-right: 10px;
+  }
+  
+  .details {
+    flex-grow: 1;
+  }
+  
+  .name {
+    font-weight: bold;
+  }
+  
+  .chat-window {
+    flex-grow: 1;
+    padding: 20px;
+  }
+  
+  .header {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 20px;
+  }
+  
+  .chat-messages {
+    height: calc(100% - 100px);
+    overflow-y: auto;
+  }
+  
+  .message-input {
+    display: flex;
+    margin-top: 20px;
+  }
+  
+  .message-input input {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px 0 0 5px;
+  }
+  
+  .message-input button {
+    padding: 10px 20px;
+    border: none;
+    background-color: #007bff;
+    color: #fff;
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+  }
+  
+ </style>
+</head>
+<body>
+  <div class="container">
+    <div class="sidebar">
+      <div class="header">WhatsApp</div>
+      <div class="search-bar">
+        <input type="text" placeholder="Search">
+      </div>
+      <div class="chat-list" id="chatList">
+       
+        <!-- More chat items can be added here -->
+      </div>
+    </div>
+    <div class="chat-window">
+      <div class="header" id="h1"></div>
+      <div class="chat-messages">
+        <div id="allp"> 
+
+        </div>
+        <!-- Chat messages will be displayed here -->
+      </div>
+      
+      <div class="message-input">
+        <input type="text" placeholder="Type a message" id="msg" disabled>
+        <button onclick="chat()"  id="sendBtn" disabled>Send</button>
+      </div>
+    </div>
+  </div>
+ 
+</body>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const name = prompt("Enter Name :")
+const data = document.getElementById('h1').textContent = `${name}`
+// document.getElementById('sname').textContent = `${name}`
+const socket =io();
+
+socket.emit('SET_USER_NAME',name);
+socket.on('SET_USER_NAME',(userData)=>{
+  
+
+  let userDiv = "";
+  let receiver = "";
+  let enableChat = false;
+
+  userData.forEach(element => {
+    if(name !==element.userName){
+      userDiv += '<div class="chat" onclick="perUser(\''+element.userName+'\')" >'  
+          +'<div class="avatar"></div>'
+          +'<div class="details">'
+          +' <div class="name" id="sname">'+element.userName+'</div>'
+         +'</div></div>' 
+    }
+  });
+  document.getElementById('chatList').innerHTML = userDiv
+})
+
+function chat(){
+    const message = document.getElementById('msg').value;
+    
+    const obj ={
+      name,
+      receiver,
+      message
+    }
+    console.log('chat method data',obj)
+    socket.emit('SEND_MSG',obj)
+    document.getElementById('msg').value = '';
+
+}
+
+
+function createCard(title, content, align) {
+
+    // Create chat item container
+    const chatItem = document.createElement('div');
+  chatItem.classList.add('chat');
+
+  // Create avatar
+  const avatar = document.createElement('div');
+  avatar.classList.add('avatar');
+  // Create card container
+  const card = document.createElement('div');
+  card.classList.add('card');
+
+  // Create card header
+  const cardHeader = document.createElement('div');
+  cardHeader.classList.add('card-header');
+  cardHeader.textContent = title;
+  cardHeader.style.textAlign = align;
+
+  // Create card body
+  const cardBody = document.createElement('div');
+  cardBody.classList.add('card-body');
+  cardBody.textContent = content;
+  cardBody.style.textAlign = align;
+
+
+  // Append header and body to card
+  card.appendChild(cardHeader);
+  card.appendChild(cardBody);
+// console.log("card==",card)
+  // Append card to a container in the document
+  document.getElementById('allp').appendChild(card);
+}
+
+function perUser(userName){
+console.log('name==',userName)
+  receiver = userName,
+  enableChat = true
+  // console.log('enableChat =',enableChat)
+  socket.emit('GET_USER_CHAT',{})
+}
+
+
+socket.on('SEND_MSG',(data)=>{
+    console.log('message====client',data);
+    if(enableChat &&(name === data.name && receiver === data.receiver || name === data.receiver && receiver === data.name )){
+      if(data.name === name){
+          createCard(data.name,data.message,'right')
+
+      }else{
+        createCard(data.name,data.message,'left')
+      }
+    }
+})
+
+socket.on('GET_USER_CHAT',(data)=>{
+  console.log('get user chat data',data)
+  document.getElementById('allp').innerHTML = ""
+  data.forEach(async(element) =>{
+    console.log('testing name==',name)
+    if(enableChat && (name === element.userName  && receiver === element.receiver || name === element.receiver && receiver === element.userName)){
+      if(element.userName === name){
+        await createCard(element.userName,element.msg,'right')
+      }
+      else{
+        await createCard(element.userName,element.msg,'left')
+      }
+    }
+  })
+  let myInput = document.getElementById('msg');
+  let myButton = document.getElementById('sendBtn')
+  myInput.disabled = false;
+  myButton.disabled = false;
+})
+
+
+
+</script>
+</html>
